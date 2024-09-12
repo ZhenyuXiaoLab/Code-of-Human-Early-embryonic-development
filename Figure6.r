@@ -1,5 +1,5 @@
 ########integrated data from cs6 and cs7 ############
-com_cs6_cs7 <- merge(cs7_exmc[co_genes_cs6_cs7, ],
+com_cs6_cs7v3 <- merge(cs7_exmc[co_genes_cs6_cs7, ],
                      cs6_exmc[co_genes_cs6_cs7,
                               sample(colnames(cs6_exmc), ncol(cs7_exmc))]) #subsample cs6 data
 
