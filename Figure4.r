@@ -65,3 +65,55 @@ DimPlot(ana1[, ana1$slice_num==36], reduction = 'spatial', group.by = 'cluster',
 
 pca_average_cs6_hema <- sc_tl_average(t(cs6_hema2@reductions$pca@cell.embeddings[,1:20]), cs6_hema2$cluster)
 pheatmap(cor(pca_average_cs6_hema), clustering_method = 'ward.D2')
+
+
+
+#mapping ery and mega clusters in CS6 onto ref_data atlas 
+mk <- FindVariableFeatures(mk, selection.method = 'vst', nfeatures = 2000)
+gene_use_mk <- intersect(VariableFeatures(mk), rownames(cs6_hema2))
+
+library(umap)
+predict_umap <- sc_tl_project_umap(ref_data = mk@assays$RNA@data[gene_use_mk, ], ref_umap = mk@reductions$umap@cell.embeddings[],
+                                   new_data = cs6_hema2[, cs6_hema2$CellType_V2 %in% c('Primitive_Mk1', 'Primitive_Mk2')]@assays$RNA@data[gene_use_mk, ])
+
+predict_umap2 <- data.frame(predict_umap, cs6_hema2[, rownames(predict_umap)]@meta.data[, "CellType_V2", drop=F], check.names = F)
+names(predict_umap2)[3] <- 'celltype' 
+predict_umap2$Cluster <- predict_umap2$celltype
+
+ref_umap <- data.frame(mk@reductions$umap@cell.embeddings[], mk@meta.data[, 'celltype', drop=F])
+ref_umap$Cluster <- 'others'
+
+
+col_mk <- c(all_colors$col_mk, 'others' = '#E6E6E6', 'Primitive_Mk1' ="#ffe699" , 'Primitive_Mk2'= "#4c9568" )
+
+
+col_ery <- c('Erythroblast' = "#ffc556" ,
+             "Early_Ery" = "#eb998b",
+             "Late_Ery" = "#fddbc8",'others' = '#E6E6E6', 'Primitive_Ery1' ="#FB6A4A" , 'Primitive_Ery2'= "#B79762")
+
+
+data.frame(rbind(ref_umap, predict_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=celltype))+geom_point(size=0.8)+theme_bw()+
+  scale_color_manual(values = col_mk)+
+
+
+data.frame(rbind(ref_umap, predict_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=Cluster))+geom_point(size=0.8)+theme_bw()+
+  scale_color_manual(values = col_mk)
+
+###########mapping onto mk atlas 
+ery <- FindVariableFeatures(ery, selection.method = 'vst', nfeatures = 2000)
+gene_use_ery <- intersect(VariableFeatures(ery), rownames(cs6_hema2))
+predict_ery_umap <- sc_tl_project_umap(ref_data = ery@assays$RNA@data[gene_use_ery, ], ref_umap = ery@reductions$umap@cell.embeddings[],
+                                   new_data = cs6_hema2[, cs6_hema2$CellType_V2 %in% c('Primitive_Ery1', 'Primitive_Ery2')]@assays$RNA@data[gene_use_ery, ])
+
+predict_ery_umap2 <- data.frame(predict_ery_umap, cs6_hema2[, rownames(predict_ery_umap)]@meta.data[, "CellType_V2", drop=F], check.names = F)
+names(predict_ery_umap2)[3] <- 'celltype' 
+predict_ery_umap2$Cluster <- predict_ery_umap2$celltype
+
+ref_umap_ery <- data.frame(ery@reductions$umap@cell.embeddings[], ery@meta.data[, 'celltype', drop=F])
+ref_umap_ery$Cluster <- 'others'
+
+data.frame(rbind(ref_umap_ery, predict_ery_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=celltype))+geom_point(size=0.8)+theme_bw()+
+  scale_color_manual(values = col_ery)+
+
+data.frame(rbind(ref_umap_ery, predict_ery_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=Cluster))+geom_point(size=0.8)+theme_bw()+
+  scale_color_manual(values = col_ery)

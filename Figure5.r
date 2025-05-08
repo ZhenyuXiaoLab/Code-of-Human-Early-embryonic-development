@@ -62,7 +62,7 @@ pheatmap::pheatmap(as.matrix(dist(t(average_dist2), upper = F))[heatmap_order4, 
 VlnPlot(cs6_endo2[, cs6_endo2$cluster %in% c('YS.Endo_1', 'YS.Endo_2', 'YS.Endo_3')], group.by = 'cluster',
         features = c('ID1','FGFR1','VCAN','MDK','KRT8', 'FGA', 'FGB', 'AFP', "TTR", 'GPC3'), cols = all_colors$cs6_hema_cluster_v1, pt.size = 0, ncol = 5)
 
-#####YE maration
+#####YE maturation
 DotPlot(cs6_endo2[, cs6_endo2$cluster %in% c('YS.Endo_1', 'YS.Endo_2', 'YS.Endo_3')], group.by = 'cluster', scale.by = 'size',
         features = rev(c('FOXA2', 'SOX17','DPYS','AKR1D1', 'VTN', 'TF', "GJB1", 'APOA2')))+coord_flip()+
    theme(axis.text.x = element_text(angle = 60, hjust = 1))+scale_color_gradientn(colours = colors.use$gradient)
@@ -171,3 +171,72 @@ pheatmap::pheatmap(t(cs6_hema2_average[genes.use, c('YS.EXMC_1', 'YS.EXMC_2')]),
                    
                             color = c(colorRampPalette(c('#E6E6E6', 'yellow'))(80), colorRampPalette(c('orange', 'red', 'brown'))(2000)))
 
+#########predict A-P prime using CS8 data
+cs8_exmc <- readRDS('cs8_exmc_fixed.rds')
+DimPlot(cs8_exmc,
+        label = T, reduction = 'umap', group.by = 'exmc_cluster')
+
+
+cs8_exmc <- CreateSeuratObject(counts = cs8_exmc_rawdata, meta.data = cs8_exmc@meta.data)
+
+#CS8 spatial location 
+cs8_spatial <- readRDS('CS8_new.rds')
+spatial_dm <- cs8_spatial@meta.data[, c("paste_x", "paste_y")]
+names(spatial_dm) <- c('spatial_1', 'spatial_2')
+
+cs8_spatial@reductions[['spatial']] <- 
+  CreateDimReducObject(as.matrix(spatial_dm), key = 'spatial')
+
+cs8_exmc$samples <- as.character(cs8_spatial[, colnames(cs8_exmc)]$samples)
+
+#scoring
+exmc <- cs8_exmc[, cs8_exmc$exmc_cluster %in% c('YS-EXE.Meso-1') & cs8_exmc$samples %in% paste('S', c(1:10, 53:62), sep="")]
+exmc$group <- 'Anterior'
+exmc$group[exmc$samples %in% paste('S', 53:62, sep="")] <- 'Posterior'
+
+DefaultAssay(exmc) <- 'SCT' 
+exmc <- SetIdent(exmc, value = 'group')
+degs_exmc <- FindAllMarkers(exmc, logfc.threshold = log(1.25), only.pos = T)
+degs_exmc <- degs_exmc[degs_exmc$p_val_adj<0.05, ]
+
+cs6_hema2 <- AddModuleScore(cs6_hema2, features = list('Anterior' = degs_exmc$gene[degs_exmc$cluster=='Anterior'],
+                                                       'Posterior' = degs_exmc$gene[degs_exmc$cluster=='Posterior']), name = c('Anterior_Meso1', 'Posterior_Meso1'))
+
+
+exmc <- cs8_exmc[, cs8_exmc$exmc_cluster %in% c('YS-EXE.Meso-2') & cs8_exmc$samples %in% paste('S', c(21:30, 33:42), sep="")]
+
+exmc$group <- 'Anterior'
+exmc$group[exmc$samples %in% paste('S', 33:42, sep="")] <- 'Posterior'
+
+DefaultAssay(exmc) <- 'SCT' 
+exmc <- SetIdent(exmc, value = 'group')
+degs_exmc <- FindAllMarkers(exmc, logfc.threshold = log(1.25), only.pos = T)
+degs_exmc <- degs_exmc[degs_exmc$p_val_adj<0.05, ]
+cs6_hema2 <- AddModuleScore(cs6_hema2, features = list('Anterior' = degs_exmc$gene[degs_exmc$cluster=='Anterior'],
+                                                       'Posterior' = degs_exmc$gene[degs_exmc$cluster=='Posterior']), name = c('Anterior_Meso2', 'Posterior_Meso2'))
+
+
+names(cs6_hema2@meta.data)[52:55] <- c('Proximal_Anterior', 'Proximal_Posterior', 'Distal_Anterior', 'Distal_Posterior')
+
+cs6_hema2@meta.data$Proximal_Anterior <- (cs6_hema2@meta.data$Proximal_Anterior-min(cs6_hema2@meta.data$Proximal_Anterior))/(max(cs6_hema2@meta.data$Proximal_Anterior)-min(cs6_hema2@meta.data$Proximal_Anterior))
+cs6_hema2@meta.data$Proximal_Posterior <- (cs6_hema2@meta.data$Proximal_Posterior-min(cs6_hema2@meta.data$Proximal_Posterior))/(max(cs6_hema2@meta.data$Proximal_Posterior)-min(cs6_hema2@meta.data$Proximal_Posterior))
+cs6_hema2@meta.data$Distal_Anterior <- (cs6_hema2@meta.data$Distal_Anterior-min(cs6_hema2@meta.data$Distal_Anterior))/(max(cs6_hema2@meta.data$Distal_Anterior)-min(cs6_hema2@meta.data$Distal_Anterior))
+cs6_hema2@meta.data$Distal_Posterior <- (cs6_hema2@meta.data$Distal_Posterior-min(cs6_hema2@meta.data$Distal_Posterior))/(max(cs6_hema2@meta.data$Distal_Posterior)-min(cs6_hema2@meta.data$Distal_Posterior))
+
+cs6_hema2$cluster_final <- plyr::mapvalues(as.character(cs6_hema2$CellType_V2), c("Hypo.2", "YS.Endo_1", "YS.Endo_2", "YS.Endo_3",
+                                                                                  "YS.EXMC_1", "YS.EXMC_2", "Myeloid Progenitor",
+                                                                                  "Primitive_Ery1", "Primitive_Ery2", "Primitive_Mk1",
+                                                                                  "Primitive_Mk2", "Connecting Stalk"), c('Hypo1', 'YS.Endo1', 'YS.Endo2', 'YS.Endo3',
+                                                                                                                          'YS.EXMC1', 'YS.EXMC2', 'pMP', 'pEry1', 'pEry2', 'pMeg1', 'pMeg2', 'CS'))
+
+
+a <- cs6_hema2@meta.data[cs6_hema2$cluster_final %in% c('YS.EXMC1', 'CS'), c('Proximal_Anterior', 'Proximal_Posterior', 'cluster_final')] %>% melt(id.vars = 'cluster_final') %>%  
+  ggplot(aes(factor(cluster_final, levels = c('YS.EXMC1','CS')), value, fill=variable))+geom_boxplot(outlier.size = 0)+theme_bw()+theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+  scale_fill_manual(values = c('blue3','red3'))+labs(x="", y="geneset score")+theme(legend.position = 'bottom', axis.text = element_text(colour = 'black'))
+
+b <- cs6_hema2@meta.data[cs6_hema2$cluster_final %in% c('YS.EXMC2'), c('Distal_Anterior', 'Distal_Posterior', 'cluster_final')] %>% melt(id.vars = 'cluster_final') %>%  
+  ggplot(aes(cluster_final, value, fill=variable))+geom_boxplot(outlier.size = 0)+theme_bw()+theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+  scale_fill_manual(values = c('blue3','red3'))+labs(x="", y= "geneset score")+theme(legend.position = 'bottom', axis.text = element_text(colour = 'black'))
+
+library(ggpubr)
+ggarrange(a, b, ncol = 2, align = 'hv', widths = c(2, 1.4))
