@@ -1,5 +1,17 @@
 ## code for Fig.S8
-
+#            Seurat       5.0.3
+#        SeuratDisk       0.0.9020
+#           ggplot2       3.4.4
+#            dplyr        1.1.3
+#            tibble       3.2.1
+#        ggchicklet       0.4.1
+#         tidyverse       2.0.0
+#            ggsci        3.0.0
+#         destiny        3.10.0
+#  SingleCellExperiment 1.22.0
+#         biomaRt        2.62.0
+#         msigdbr        7.5.1
+#           fgsea        1.32.2
 ### GSEA-GO
 
 ############ CS6_ave_hypo_GSEA_go

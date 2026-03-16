@@ -1,7 +1,5 @@
 #code for FigS13
-
-#####CS7 tyser data reanalysis #### 
-cs7_rawdata <- readRDS('raw_matrix.rds')
+#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; clusterProfiler 4.2.2; pheatmap 1.0.12; ggplot2 3.5.1
 cs7_umap <- readRDS('annot_umap.rds')
 cs7_anno <- read.delim('E-MTAB-9388.sdrf.txt', header = T)
 

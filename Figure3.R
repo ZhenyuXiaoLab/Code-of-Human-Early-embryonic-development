@@ -1,4 +1,5 @@
 ####### code for Figure 5 ########
+#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; clusterProfiler 4.2.2; pheatmap 1.0.12; ggplot2 3.5.1;
 #######correlation analysis
 pca_average_cs6_hema <- sc_tl_average(t(cs6_hema2@reductions$pca@cell.embeddings[,1:15]), cs6_hema2$cluster)
 

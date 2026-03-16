@@ -1,6 +1,5 @@
 #code for Fig.S12
-
-#### scs analysis ####
+#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; clusterProfiler 4.2.2; pheatmap 1.0.12; ggplot2 3.5.1
 scs_data1 <- readRDS('scs_slice1-7_datalist.rds') #SCS expression 
 scs1_loc <- data.frame(scs_data1$reduction$spatial@cell.embeddings[], check.names = F) #location
 

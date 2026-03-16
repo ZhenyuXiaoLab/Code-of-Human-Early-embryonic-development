@@ -1,5 +1,5 @@
 #code for Fig.S10
-
+#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; clusterProfiler 4.2.2; pheatmap 1.0.12; ggplot2 3.5.1;
 ######cell origin of Pery2 and Pmega2#######
 #oad Ery and Mk data from adult bone marrow and embryonic yolk sac
 load('bm_ys_ery_mk.Rdata')

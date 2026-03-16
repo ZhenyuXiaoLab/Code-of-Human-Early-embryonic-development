@@ -1,11 +1,12 @@
 ## code for Fig.S9
-
+#Seurat 5.0.3
+#ggplot2 3.4.4
 
 library(ggplot2)
 library(Seurat)
 
 # Load preprocessed single-cell RNA-seq data
-CS6_epi_only <- readRDS("D:/文件/bioinfo/DATA/人CS6data＆mk＆ms/CS6_epi_only_cs.rds")
+CS6_epi_only <- readRDS("D:/data/bioinfo/DATA/humanCS6data＆mk＆ms/CS6_epi_only_cs.rds")
 
 # Find variable features
 CS6_epi_only <- FindVariableFeatures(CS6_epi_only, selection.method = "vst", nfeatures = 2000)

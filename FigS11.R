@@ -1,5 +1,5 @@
 #code for FigS11
-
+#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; clusterProfiler 4.2.2; pheatmap 1.0.12; ggplot2 3.5.1;monocle3 V1.3.7; SCP 0.5.6;slingshot 2.2.1 
 #### perform developmental trajectory analysis using clusters located in yolk sac ####
 #slingshot analysis
 cs6_sub_slingshot <- RunSlingshot(cs6_hema2[, !cs6_hema2$cluster_final %in% c('CS', 'pEry2', 'pMeg2')],
