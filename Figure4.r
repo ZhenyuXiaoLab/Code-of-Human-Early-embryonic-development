@@ -1,120 +1,126 @@
-#######subset hematopoietic related clusters #############
-#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; umap 0.2.10.0; pheatmap 1.0.12; ggplot2 3.5.1
-###loading cs6_hema2
-cs6_hema2 <- NormalizeData(cs6_hema2)
-cs6_hema2 <- FindVariableFeatures(cs6_hema2)
-cs6_hema2 <- ScaleData(cs6_hema2)
-cs6_hema2 <- RunPCA(cs6_hema2)
+########integrated data from cs6 and cs7 ############
+#software version: Seuratwrapper:V0.30; Seurat 4.3.0.1; clusterProfiler 4.2.2; pheatmap 1.0.12; ggplot2 3.5.1;monocle3 V1.3.7; gam 1.22-3
+com_cs6_cs7v3 <- merge(cs7_exmc[co_genes_cs6_cs7, ],
+                     cs6_exmc[co_genes_cs6_cs7,
+                              sample(colnames(cs6_exmc), ncol(cs7_exmc))]) #subsample cs6 data
 
-ElbowPlot(cs6_hema2, ndims = 30)
-cs6_hema2 <- RunUMAP(cs6_hema2, dims = 1:20, min.dist = 0.3, spread = 0.5)
+com_cs6_cs7v3 <- SCTransform(com_cs6_cs7v3, vars.to.regress = c('batch', 'nCount_RNA'))
+com_cs6_cs7v3 <- RunFastMNN(SplitObject(com_cs6_cs7v3, split.by = 'stage')[c('CS7', 'CS6')], k=50)
 
-col_hema <- setNames(col.use[1:12], c('Hypo1', 'YS.Endo_1','YS.Endo_2','YS.Endo_3', 'YS.EXMC_1','YS.EXMC_2', 'EXMC_Prog', "pMP",
-                                      'pEry1', 'pEry2', 'pMega1','pMega2'))
+com_cs6_cs7v3 <- RunUMAP(com_cs6_cs7v3, reduction = 'mnn', dims = 1:30, local.connectivity = 20, min.dist = 0.5, spread = 1)
+DimPlot(com_cs6_cs7v3, group.by = 'cluster_final', cols = all_colors$col_cs6_cs7)+
+DimPlot(com_cs6_cs7v3, group.by = 'stage', cols = all_colors$group)
 
-cs6_hema2$cluster <- factor(cs6_hema2$cluster, levels = c('Hypo1', 'YS.Endo_1','YS.Endo_2','YS.Endo_3', 'YS.EXMC_1','YS.EXMC_2', 'EXMC_Prog', "pMP",
-                                      'pEry1', 'pEry2', 'pMega1','pMega2'))
+##############monocle3 analysis
+library(monocle3)
+com_cs6_cs7v3@meta.data <- data.frame(com_cs6_cs7v3@meta.data, t(com_cs6_cs7v3@assays$RNA@data), check.names = F)
+com_cs6_cs7_monocle3 <- as.cell_data_set(com_cs6_cs7v3[, com_cs6_cs7v3$cluster_final %in% c("pMP_CS6",
+                                                                                       "pMP_CS7",
+                                                                                       "YSMP_CS7",
+                                                                                       "Mac_CS7",
+                                                                                       "EC_CS7")])
 
-DimPlot(cs6_hema2, group.by = 'cluster', cols = col.use, label = T, repel = T, pt.size = 1)
 
-######Feature Genes 
-cs6_hema2 <- SetIdent(cs6_hema2, value = 'cluster')
-degs_cs6_hema <- FindAllMarkers(cs6_hema2, logfc.threshold = log(1.25), only.pos = T, max.cells.per.ident = 1000)
-degs_cs6_hema <- degs_cs6_hema[degs_cs6_hema$p_val_adj<0.05, ]
+com_cs6_cs7_monocle3 <- cluster_cells(com_cs6_cs7_monocle3, reduction_method = 'UMAP',
+                                      cluster_method = 'louvain', resolution = 1)
 
-DotPlot(cs6_hema2, features = rev(sc_tl_topgene(degs_cs6_hema, 5)),
-        group.by = 'cluster')+coord_flip()+
-        scale_color_gradientn('Pseudotime', colours = colorRampPalette(c('#E6E6E6', 'orange', 'red', 'brown'))(100))+
-        theme(axis.text.x = element_text(angle = 60, hjust = 1))
+com_cs6_cs7_monocle3 <- learn_graph(com_cs6_cs7_monocle3, use_partition = FALSE)
 
-sc_tl_average <- function(data, cluster){
+com_cs6_cs7_monocle3 <- order_cells(com_cs6_cs7_monocle3, reduction_method = 'UMAP',
+                                    root_cells = colnames(com_cs6_cs7v3)[com_cs6_cs7v3$cluster_final %in% c("EC_CS7","pMP_CS6")])
+
+plot_cells(com_cs6_cs7_monocle3, color_cells_by = 'cluster_final',
+           show_trajectory_graph = T, label_branch_points = F,
+           label_roots = F, label_leaves = F, 
+           label_cell_groups = F, label_groups_by_cluster = F,
+           labels_per_group = F, rasterize = T, cell_size = 1.2)+
+  scale_color_manual('Cluster',values = all_colors$col_cs6_cs7)
+
+plot_cells(com_cs6_cs7_monocle3, color_cells_by = 'cluster_final',
+           show_trajectory_graph = T, label_branch_points = F,
+           label_roots = F, label_leaves = F, 
+           label_cell_groups = F, label_groups_by_cluster = F,
+           labels_per_group = F, rasterize = T, cell_size = 1.2)+
+  scale_color_manual('Cluster',values = all_colors$col_cs6_cs7)+
+
+
+plot_cells(com_cs6_cs7_monocle3, color_cells_by = 'stage',
+             show_trajectory_graph = T, label_branch_points = F,
+             label_roots = F, label_leaves = F, 
+             label_cell_groups = F, label_groups_by_cluster = F,
+             labels_per_group = F, rasterize = T, cell_size = 1.2)+
+  scale_color_manual('group',values = as.character(col_group))+
   
-  
-  library(reshape2)
-  tmp_data <- data.frame(data.frame(t(data), check.names = F), cluster = cluster,
-                         check.names = F)
-  
-  mean_data <- aggregate(.~cluster, tmp_data, mean)
-  clustername <- mean_data[,1]
-  mean_data <- mean_data[,2:ncol(mean_data)]
-  rownames(mean_data) <- clustername; mean_data <- t(mean_data)
-  
-  return(mean_data)
-  
-}
+plot_cells(com_cs6_cs7_monocle3, color_cells_by = 'pseudotime',
+             show_trajectory_graph = T, label_branch_points = F,
+             label_roots = F, label_leaves = F, 
+             label_cell_groups = F, label_groups_by_cluster = F,
+             labels_per_group = F, rasterize = T, cell_size = 1.2)+
+  scale_color_gradientn("Pseudotime",colours = colors.use$gradient)
+
+###############
+FeaturePlot(com_cs6_cs7v3[, com_cs6_cs7v3$cluster_final %in% c("pMP_CS6",
+                                                               "pMP_CS7",
+                                                               "YSMP_CS7",
+                                                               "Mac_CS7",
+                                                               "EC_CS7")], 
+            features = c('KDR',  'S100P', 'MPO', 'AZU1', 'PTPRC', 'CSF1R', 'C1QA', 'CD163'),
+            cols = c('grey', 'red'), ncol = 4, order = T)
+
+###############
+w1 <- com_cs6_cs7v3[, as.character(com_cs6_cs7v3$cluster_final) %in% c('pMP_CS6',
+                                                                       'pMP_CS7',
+                                                                    'Mac_CS7')]
+
+w1$pseudotime <- com_cs6_cs7_monocle3@principal_graph_aux$UMAP$pseudotime[colnames(w1)]
+w1$cluster_monocle <- com_cs6_cs7_monocle3@clusters$UMAP$clusters[colnames(w1)]
 
 
-average_cs6_hema <- sc_tl_average(cs6_hema2@assays$RNA@data, cluster = cs6_hema2$cluster)
+####
+dynamic_genes <- sc_tl_find_gene_along_paseudotime(pseudotime_data = w1@meta.data[, c('pseudotime', 'cluster_final')],
+                                                   data = w1@assays$RNA@data,
+                                                   col = list(cluster_final = all_colors$col_cs6_cs7, pseudotime = colors.use$gradient),
+                                                   k = 5, pval = 1e-2)
 
-pheatmap(average_cs6_hema[c('CST1','SOX17','APOE', 'APOC1',
-                            'AFP','TTR', 'KDR', 'DCN','HAND1','MDK','COL1A1','MPO','PRTN3','HBE1', 'HBG1', 'GYPA', 'PF4', 'PPBP', 'GP9'), ], 
-         cluster_rows = F, cluster_cols = F, scale = 'row')
+w1_data <- w1@assays$RNA@data
+phmat <- t(scale(t(w1_data)))
+phmat <- phmat[, colnames(w1)[order(w1$pseudotime)]]
+w1_smooth_data <- sc_tl_smooth_data(phmat, k=10)
 
-FeaturePlot(cs6_hema2, c('CST1','SOX17','APOE', 'APOC1',
-                            'AFP','TTR', 'KDR', 'DCN','HAND1','MDK','COL1A1','MPO','PRTN3','HBE1', 'HBG1', 'GYPA', 'PF4', 'PPBP'), ncol = 6, cols = c('grey', 'red'), order = T)
+dynamic_genes <- dynamic_genes[[2]]
+w1_anno <- w1@meta.data
 
-DimPlot(cs6_hema2, reduction = 'spatial', group.by = 'cluster', cols = col_hema)
-DimPlot(ana1, reduction = 'spatial', group.by = 'cluster', cols = col.use, raster = F)
+ph_w1 <- pheatmap(w1_smooth_data[intersect(rownames(dynamic_genes)[order(dynamic_genes$gam.pval, decreasing = F)][1:1000], rownames(phmat)),
+                        rownames(w1_anno)[order(w1_anno$pseudotime, decreasing = F)]],
+                  cluster_rows = T, cluster_cols = F,
+                  cutree_rows = 4, clustering_method = 'ward.D2',
+                  color = colors.use$BluewhiteRed, annotation_col = w1_anno[, c('cluster_final', 'pseudotime')],
+                  annotation_colors = list(cluster_final = all_colors$col_cs6_cs7, pseudotime = colors.use$gradient),
+                  show_rownames = F, show_colnames = F)
 
-########spatial mapping
-col_ana1_v2 <- setNames(col.use[1:28], unique(ana1$cluster)) 
-DimPlot(ana1[, ana1$slice_num==1], reduction = 'spatial', group.by = 'cluster', cols = col_ana1_v2, raster = F)+
-DimPlot(ana1[, ana1$slice_num==5], reduction = 'spatial', group.by = 'cluster', cols = col_ana1_v2, raster = F)+
-DimPlot(ana1[, ana1$slice_num==28], reduction = 'spatial', group.by = 'cluster', cols = col_ana1_v2, raster = F)+
-DimPlot(ana1[, ana1$slice_num==36], reduction = 'spatial', group.by = 'cluster', cols = col_ana1_v2, raster = F)
+w1_gene_anno <- data.frame(cutree(ph_w1$tree_row, k = 4))
+names(w1_gene_anno) <- 'Gene_pattern'
+table(w1_gene_anno$Gene_pattern)
 
+# w1_gene_anno$Gene_pattern <- plyr::mapvalues(w1_gene_anno$Gene_pattern, c(2, 1, 3, 4),
+#                                              paste('Pattern', c(1, 2, 3, 4), sep=""))
 
-pca_average_cs6_hema <- sc_tl_average(t(cs6_hema2@reductions$pca@cell.embeddings[,1:20]), cs6_hema2$cluster)
-pheatmap(cor(pca_average_cs6_hema), clustering_method = 'ward.D2')
+w1_gene_anno$Gene_pattern <- plyr::mapvalues(w1_gene_anno$Gene_pattern, c(2, 3, 1, 4),
+                                             paste('Pattern', c(1, 2, 3, 4), sep=""))
 
+all_colors$gene_pattern <- c('Pattern1' = 'blue3',
+                             'Pattern2' = 'darkgreen',
+                             'Pattern3' = 'orange3',
+                             'Pattern4' = 'brown')
 
-
-#mapping ery and mega clusters in CS6 onto ref_data atlas 
-mk <- FindVariableFeatures(mk, selection.method = 'vst', nfeatures = 2000)
-gene_use_mk <- intersect(VariableFeatures(mk), rownames(cs6_hema2))
-
-library(umap)
-predict_umap <- sc_tl_project_umap(ref_data = mk@assays$RNA@data[gene_use_mk, ], ref_umap = mk@reductions$umap@cell.embeddings[],
-                                   new_data = cs6_hema2[, cs6_hema2$CellType_V2 %in% c('Primitive_Mk1', 'Primitive_Mk2')]@assays$RNA@data[gene_use_mk, ])
-
-predict_umap2 <- data.frame(predict_umap, cs6_hema2[, rownames(predict_umap)]@meta.data[, "CellType_V2", drop=F], check.names = F)
-names(predict_umap2)[3] <- 'celltype' 
-predict_umap2$Cluster <- predict_umap2$celltype
-
-ref_umap <- data.frame(mk@reductions$umap@cell.embeddings[], mk@meta.data[, 'celltype', drop=F])
-ref_umap$Cluster <- 'others'
-
-
-col_mk <- c(all_colors$col_mk, 'others' = '#E6E6E6', 'Primitive_Mk1' ="#ffe699" , 'Primitive_Mk2'= "#4c9568" )
-
-
-col_ery <- c('Erythroblast' = "#ffc556" ,
-             "Early_Ery" = "#eb998b",
-             "Late_Ery" = "#fddbc8",'others' = '#E6E6E6', 'Primitive_Ery1' ="#FB6A4A" , 'Primitive_Ery2'= "#B79762")
-
-
-data.frame(rbind(ref_umap, predict_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=celltype))+geom_point(size=0.8)+theme_bw()+
-  scale_color_manual(values = col_mk)+
+pheatmap(w1_smooth_data[rownames(w1_gene_anno)[order(w1_gene_anno$Gene_pattern, decreasing = F)],
+                        rownames(w1_anno)[order(w1_anno$pseudotime, decreasing = F)]],
+         cluster_rows = F, cluster_cols = F,
+         cutree_rows = 4, clustering_method = 'ward.D2',
+         color = colors.use$BluewhiteRed, annotation_col = w1_anno[, c('cluster_final', 'pseudotime')],
+         annotation_colors = list(cluster_final = all_colors$col_cs6_cs7[c(3, 9, 11)],
+                                  pseudotime = colors.use$gradient,
+                                  Gene_pattern = all_colors$gene_pattern),
+         show_rownames = F, show_colnames = F, annotation_row = w1_gene_anno, annotation_names_row = F)
 
 
-data.frame(rbind(ref_umap, predict_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=Cluster))+geom_point(size=0.8)+theme_bw()+
-  scale_color_manual(values = col_mk)
-
-###########mapping onto mk atlas 
-ery <- FindVariableFeatures(ery, selection.method = 'vst', nfeatures = 2000)
-gene_use_ery <- intersect(VariableFeatures(ery), rownames(cs6_hema2))
-predict_ery_umap <- sc_tl_project_umap(ref_data = ery@assays$RNA@data[gene_use_ery, ], ref_umap = ery@reductions$umap@cell.embeddings[],
-                                   new_data = cs6_hema2[, cs6_hema2$CellType_V2 %in% c('Primitive_Ery1', 'Primitive_Ery2')]@assays$RNA@data[gene_use_ery, ])
-
-predict_ery_umap2 <- data.frame(predict_ery_umap, cs6_hema2[, rownames(predict_ery_umap)]@meta.data[, "CellType_V2", drop=F], check.names = F)
-names(predict_ery_umap2)[3] <- 'celltype' 
-predict_ery_umap2$Cluster <- predict_ery_umap2$celltype
-
-ref_umap_ery <- data.frame(ery@reductions$umap@cell.embeddings[], ery@meta.data[, 'celltype', drop=F])
-ref_umap_ery$Cluster <- 'others'
-
-data.frame(rbind(ref_umap_ery, predict_ery_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=celltype))+geom_point(size=0.8)+theme_bw()+
-  scale_color_manual(values = col_ery)+
-
-data.frame(rbind(ref_umap_ery, predict_ery_umap2)) %>% ggplot(aes(UMAP_1, UMAP_2, col=Cluster))+geom_point(size=0.8)+theme_bw()+
-  scale_color_manual(values = col_ery)
